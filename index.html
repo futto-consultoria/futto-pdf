@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unificador de PDFs — Futto</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #e63946;
+    --red-hover: #cf2f3c;
+    --red-light: #fdecea;
+    --red-mid: #f5b3b7;
+    --dark: #26383f;
+    --dark2: #1e2e34;
+    --dark3: #15222a;
+    --mid: #3d5561;
+    --surface: #ffffff;
+    --surface-alt: #f6f8f9;
+    --surface-2: #edf1f3;
+    --border: #dde3e6;
+    --border-mid: #c8d1d5;
+    --text: #26383f;
+    --text-sec: #5a7480;
+    --text-muted: #8fa5ad;
+    --green: #1e8a52;
+    --green-bg: #e8f7ef;
+    --radius: 12px;
+    --shadow-sm: 0 1px 3px rgba(38,56,63,.08), 0 1px 8px rgba(38,56,63,.05);
+    --shadow: 0 2px 8px rgba(38,56,63,.09), 0 4px 24px rgba(38,56,63,.07);
+    --shadow-lg: 0 8px 32px rgba(38,56,63,.13), 0 2px 8px rgba(38,56,63,.08);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #edf1f3;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  .site-header {
+    background: var(--dark3);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-mark {
+    width: 34px;
+    height: 34px;
+    background: var(--red);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .brand-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,.4);
+    font-weight: 400;
+  }
+  .header-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,.55);
+  }
+  .header-badge svg { opacity: .6; }
+
+  /* ── BANNER DE USO INTERNO ── */
+  .internal-banner {
+    background: linear-gradient(90deg, var(--dark) 0%, var(--mid) 100%);
+    padding: 10px 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .internal-banner svg { flex-shrink: 0; color: var(--red-mid); }
+  .internal-banner p {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,.75);
+    text-align: center;
+    line-height: 1.4;
+  }
+  .internal-banner strong { color: #fff; font-weight: 600; }
+
+  /* ── MAIN ── */
+  main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2.5rem 1.5rem 3rem;
+  }
+  .container {
+    width: 100%;
+    max-width: 580px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 4px;
+    letter-spacing: -.3px;
+  }
+  .page-sub {
+    font-size: 14px;
+    color: var(--text-sec);
+    margin-bottom: 1.75rem;
+    line-height: 1.5;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  /* ── DROP ZONE ── */
+  .drop-zone {
+    padding: 2.25rem 1.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background .15s;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.over { background: var(--red-light); }
+  .drop-zone.over { border-color: var(--red); }
+  .drop-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    background: var(--red-light);
+    border: 1.5px solid var(--red-mid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    transition: transform .15s;
+  }
+  .drop-zone:hover .drop-icon-wrap { transform: translateY(-2px); }
+  .drop-icon-wrap svg { color: var(--red); }
+  .drop-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .drop-desc { font-size: 13px; color: var(--text-sec); margin-bottom: 18px; line-height: 1.5; }
+  .btn-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 20px;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, transform .1s;
+    box-shadow: 0 2px 8px rgba(230,57,70,.3);
+  }
+  .btn-pick:hover { background: var(--red-hover); transform: translateY(-1px); }
+  .btn-pick:active { transform: translateY(0); }
+  .fmt-hint { font-size: 11px; color: var(--text-muted); margin-top: 12px; }
+  #file-input { display: none; }
+
+  /* ── NOME DO ARQUIVO ── */
+  .name-section {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+  }
+  .name-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .name-input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1.5px solid var(--border-mid);
+    border-radius: 9px;
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .name-input-wrap:focus-within {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(230,57,70,.1);
+  }
+  .name-input-prefix {
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-right: 1.5px solid var(--border);
+    height: 38px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #pdf-name {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: transparent;
+    height: 38px;
+  }
+  .name-input-suffix {
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-left: 1.5px solid var(--border);
+    height: 38px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* ── LISTA DE ARQUIVOS ── */
+  .list-section {
+    padding: 1rem 1.25rem;
+    display: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .list-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .count-pill {
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    line-height: 16px;
+  }
+  .btn-clear {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+    transition: color .15s;
+  }
+  .btn-clear:hover { color: var(--red); }
+
+  #file-list { list-style: none; }
+  .fi {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    margin-bottom: 5px;
+    transition: background .1s, border-color .1s;
+    cursor: default;
+  }
+  .fi:hover { background: #eef2f4; border-color: var(--border-mid); }
+  .fi-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .fi-icon { color: var(--red); flex-shrink: 0; opacity: .8; }
+  .fi-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+  .fi-size {
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    min-width: 46px;
+    text-align: right;
+  }
+  .fi-actions {
+    display: flex;
+    gap: 1px;
+    flex-shrink: 0;
+    margin-left: 2px;
+  }
+  .fi-actions button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 5px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .1s, color .1s;
+    width: 26px;
+    height: 26px;
+  }
+  .fi-actions button:hover { background: var(--surface-2); color: var(--text); }
+  .fi-actions button.del:hover { background: var(--red-light); color: var(--red); }
+  .fi-actions button:disabled { opacity: .2; cursor: default; pointer-events: none; }
+
+  /* ── FOOTER COM BOTÃO ── */
+  .action-section {
+    padding: 1.25rem;
+    background: var(--surface);
+    display: none;
+  }
+  .btn-merge {
+    width: 100%;
+    padding: 12px;
+    background: var(--dark);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    transition: background .15s, transform .1s;
+    letter-spacing: -.1px;
+  }
+  .btn-merge:hover { background: var(--dark2); transform: translateY(-1px); }
+  .btn-merge:active { transform: translateY(0); }
+  .btn-merge:disabled {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    margin-top: 12px;
+    display: none;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--red), #f77f87);
+    border-radius: 2px;
+    transition: width .35s ease;
+  }
+
+  #status {
+    margin-top: 10px;
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+    color: var(--text-sec);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+  #status.ok { color: var(--green); }
+  #status.err { color: var(--red); }
+
+  /* ── AVISO PRIVACIDADE ── */
+  .privacy-note {
+    padding: .75rem 1.25rem;
+    background: var(--surface-alt);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+  }
+  .privacy-note svg { flex-shrink: 0; margin-top: 1px; color: var(--text-muted); }
+  .privacy-note p { font-size: 11px; color: var(--text-muted); line-height: 1.55; }
+
+  /* ── FOOTER ── */
+  .site-footer {
+    background: var(--dark3);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .site-footer p { font-size: 11px; color: rgba(255,255,255,.3); }
+  .site-footer strong { color: rgba(255,255,255,.55); font-weight: 600; }
+  .footer-mark {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(255,255,255,.25);
+  }
+  .footer-mark-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--red);
+    opacity: .6;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 520px) {
+    .internal-banner { flex-direction: column; gap: 6px; }
+    main { padding: 1.5rem 1rem 2rem; }
+    .site-footer { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="brand">
+    <div class="logo-mark">F</div>
+    <div>
+      <div class="brand-name">Unificador de PDFs</div>
+      <div class="brand-sub">Futto Consultoria e Desenvolvimento</div>
+    </div>
+  </div>
+  <div class="header-badge">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    Uso interno
+  </div>
+</header>
+
+<!-- BANNER USO INTERNO -->
+<div class="internal-banner">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+  <p><strong>Ferramenta de uso interno Futto.</strong> Este sistema é de propriedade exclusiva da Futto Consultoria e Desenvolvimento Ltda. e não pode ser compartilhado, reproduzido ou redistribuído sem autorização.</p>
+</div>
+
+<!-- MAIN -->
+<main>
+  <div class="container">
+    <h1 class="page-title">Combine seus PDFs</h1>
+    <p class="page-sub">Selecione os arquivos, defina a ordem e escolha o nome do documento final. O processamento acontece inteiramente no seu computador.</p>
+
+    <div class="card">
+
+      <!-- NOME DO PDF -->
+      <div class="name-section">
+        <div class="name-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          Nome do arquivo gerado
+        </div>
+        <div class="name-input-wrap">
+          <span class="name-input-prefix">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            futto_
+          </span>
+          <input type="text" id="pdf-name" placeholder="nome-do-documento" value="documentos-unificados" autocomplete="off" spellcheck="false">
+          <span class="name-input-suffix">.pdf</span>
+        </div>
+      </div>
+
+      <!-- DROP ZONE -->
+      <div class="drop-zone" id="drop">
+        <div class="drop-icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <p class="drop-title">Arraste seus PDFs aqui</p>
+        <p class="drop-desc">Solte os arquivos nesta área ou clique no<br>botão abaixo para abrir o explorador</p>
+        <button class="btn-pick" id="pick-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          Selecionar arquivos PDF
+        </button>
+        <input type="file" id="file-input" multiple accept="application/pdf">
+        <p class="fmt-hint">Apenas arquivos .pdf — múltipla seleção permitida</p>
+      </div>
+
+      <!-- LISTA -->
+      <div class="list-section" id="list-section">
+        <div class="list-header">
+          <div class="list-label-row">
+            Arquivos selecionados
+            <span class="count-pill" id="count-pill">0</span>
+          </div>
+          <button class="btn-clear" id="clear-btn">Remover todos</button>
+        </div>
+        <ul id="file-list" role="list"></ul>
+      </div>
+
+      <!-- AÇÃO -->
+      <div class="action-section" id="action-section">
+        <button class="btn-merge" id="merge-btn" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="merge-label">Selecione ao menos 2 arquivos</span>
+        </button>
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p id="status"></p>
+      </div>
+
+      <!-- PRIVACIDADE -->
+      <div class="privacy-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <p>Seus documentos <strong>não saem do seu computador</strong>. O processamento é feito inteiramente no navegador — nenhum arquivo é enviado para a internet.</p>
+      </div>
+
+    </div><!-- /card -->
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <p>© 2026 <strong>Futto Consultoria e Desenvolvimento Ltda.</strong> — Todos os direitos reservados.</p>
+  <div class="footer-mark">
+    <div class="footer-mark-dot"></div>
+    Ferramenta interna · Não compartilhe
+  </div>
+</footer>
+
+<script>
+  const drop       = document.getElementById('drop');
+  const fileInput  = document.getElementById('file-input');
+  const pickBtn    = document.getElementById('pick-btn');
+  const listSec    = document.getElementById('list-section');
+  const actionSec  = document.getElementById('action-section');
+  const fileList   = document.getElementById('file-list');
+  const mergeBtn   = document.getElementById('merge-btn');
+  const mergeLabel = document.getElementById('merge-label');
+  const statusEl   = document.getElementById('status');
+  const clearBtn   = document.getElementById('clear-btn');
+  const countPill  = document.getElementById('count-pill');
+  const progressBar= document.getElementById('progress-bar');
+  const progressFill=document.getElementById('progress-fill');
+  const pdfNameInput=document.getElementById('pdf-name');
+
+  let files = [];
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+
+  function slugify(str) {
+    return str.trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      || 'documentos-unificados';
+  }
+
+  function getFileName() {
+    const name = slugify(pdfNameInput.value);
+    return 'futto_' + name + '.pdf';
+  }
+
+  // Eventos de seleção
+  pickBtn.onclick = e => { e.stopPropagation(); fileInput.click(); };
+  drop.onclick = e => {
+    if (e.target === drop || e.target.classList.contains('drop-title') ||
+        e.target.classList.contains('drop-desc') || e.target.classList.contains('drop-icon-wrap') ||
+        e.target.classList.contains('fmt-hint')) {
+      fileInput.click();
+    }
+  };
+  fileInput.onchange = e => { addFiles(Array.from(e.target.files)); fileInput.value = ''; };
+
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    const pdfs = Array.from(e.dataTransfer.files).filter(f =>
+      f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    addFiles(pdfs);
+  };
+
+  function addFiles(newFiles) {
+    newFiles.forEach(f => {
+      if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+        files.push(f);
+      }
+    });
+    render();
+    setStatus('', '');
+    progressBar.style.display = 'none';
+    progressFill.style.width = '0%';
+  }
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = cls;
+  }
+
+  function svgIcon(type) {
+    const icons = {
+      up: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
+      down: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+      x: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+      pdf: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`
+    };
+    return icons[type] || '';
+  }
+
+  function render() {
+    fileList.innerHTML = '';
+    files.forEach((f, i) => {
+      const li = document.createElement('li');
+      li.className = 'fi';
+      li.innerHTML = `
+        <span class="fi-num">${i + 1}</span>
+        <span class="fi-icon">${svgIcon('pdf')}</span>
+        <span class="fi-name" title="${f.name}">${f.name}</span>
+        <span class="fi-size">${fmtSize(f.size)}</span>
+        <div class="fi-actions">
+          <button title="Mover para cima" ${i === 0 ? 'disabled' : ''}>${svgIcon('up')}</button>
+          <button title="Mover para baixo" ${i === files.length - 1 ? 'disabled' : ''}>${svgIcon('down')}</button>
+          <button class="del" title="Remover arquivo">${svgIcon('x')}</button>
+        </div>`;
+      const btns = li.querySelectorAll('button');
+      btns[0].onclick = () => { if (i > 0) { [files[i-1], files[i]] = [files[i], files[i-1]]; render(); } };
+      btns[1].onclick = () => { if (i < files.length - 1) { [files[i], files[i+1]] = [files[i+1], files[i]]; render(); } };
+      btns[2].onclick = () => { files.splice(i, 1); render(); };
+      fileList.appendChild(li);
+    });
+
+    const n = files.length;
+    countPill.textContent = n;
+    listSec.style.display  = n ? 'block' : 'none';
+    actionSec.style.display = n ? 'block' : 'none';
+    mergeBtn.disabled = n < 2;
+    mergeLabel.textContent = n >= 2
+      ? `Combinar ${n} arquivo${n > 1 ? 's' : ''} e baixar PDF`
+      : 'Selecione ao menos 2 arquivos';
+  }
+
+  clearBtn.onclick = () => {
+    files = [];
+    render();
+    setStatus('', '');
+    progressBar.style.display = 'none';
+    progressFill.style.width = '0%';
+  };
+
+  mergeBtn.onclick = async () => {
+    if (files.length < 2) return;
+    mergeBtn.disabled = true;
+    progressBar.style.display = 'block';
+    progressFill.style.width = '5%';
+    setStatus('Iniciando processamento…', '');
+
+    try {
+      const PDFDocument = window.PDFLib.PDFDocument;
+      const merged = await PDFDocument.create();
+
+      for (let i = 0; i < files.length; i++) {
+        const pct = 5 + Math.round(((i) / files.length) * 80);
+        progressFill.style.width = pct + '%';
+        setStatus(`Processando arquivo ${i + 1} de ${files.length}…`, '');
+        const buf = await files[i].arrayBuffer();
+        const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
+        const pages = await merged.copyPages(doc, doc.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+
+      progressFill.style.width = '92%';
+      setStatus('Gerando arquivo final…', '');
+      const bytes = await merged.save();
+      progressFill.style.width = '100%';
+
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = getFileName();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+
+      setStatus('✓ Download concluído: ' + getFileName(), 'ok');
+    } catch (err) {
+      setStatus('Erro ao processar: ' + err.message, 'err');
+      progressFill.style.width = '0%';
+    } finally {
+      mergeBtn.disabled = files.length < 2;
+    }
+  };
+</script>
+</body>
+</html>
